@@ -1,0 +1,26 @@
+<annotation>
+  <folder>input</folder>
+  <filename>1677917229.jpg</filename>
+  <path>E:\OpenLabeling\main\input\1677917229.jpg</path>
+  <source>
+    <database>Unknown</database>
+  </source>
+  <size>
+    <width>2412</width>
+    <height>1421</height>
+    <depth>3</depth>
+  </size>
+  <segmented>0</segmented>
+  <object>
+    <name>tree</name>
+    <pose>Unspecified</pose>
+    <truncated>0</truncated>
+    <difficult>0</difficult>
+    <bndbox>
+      <xmin>1598</xmin>
+      <ymin>266</ymin>
+      <xmax>1692</xmax>
+      <ymax>574</ymax>
+    </bndbox>
+  </object>
+</annotation>
