@@ -59,7 +59,7 @@ def drawBBox(image, bboxes):
     for bbox in bboxes:
         conf = bbox[4]
         classID = int(bbox[5])
-        if conf > yolov5.conf and classID==0:
+        if conf > yolov5.conf:
             x0,y0,x1,y1 = int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3])
             color = [int(c) for c in COLORS[classID]]
             cv2.rectangle(image, (x0, y0), (x1, y1), color, 3)
