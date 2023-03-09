@@ -76,9 +76,15 @@ def getLabelExist(img):
     for re in result:
         for res in re:
             print(res)
-            if res[1][0].find("级") != -1 or res[1][0].find("资") != -1 or res[1][0].find("源") != -1:
+            if res[1][0].find("矿") != -1 or res[1][0].find("树") != -1:
                 return True
     return False 
+
+def keyBoardReleaseAll():
+    keyboard.release("right")
+    keyboard.release("left")
+    keyboard.release("shift")
+    keyboard.release('w')
 
 if __name__ == '__main__':
     ctypes.windll.user32.SetProcessDPIAware()
@@ -88,46 +94,74 @@ if __name__ == '__main__':
     
     img_src_width = 1280
     img_src_height = 720
-
-
-    last_F = 0
-    last_sight = 0
-    last_sight_up = 0
     last_space = 0
-    last_turn = time.time()
     sight_key = None
-    sight_key_up = None
+
+    #采集相关
+    cut = False #当前帧是否识别出要砍树
+    cut_mode_time = 0 #进入砍树模式的时间
+    cut_mode_last = 10
+
+
+    #-----全局变量区-----
+    img_src = np.array(0)
+    lock = threading.Lock()
+    #-------------------
+
+    def threadGrabScreen():
+        global img_src
+        global lock
+        while True:
+            last_time = time.time()
+
+            img_src_origin, _ = getScreenshot()
+            lock.acquire()
+            img_src = cv2.resize(img_src_origin, dsize=(img_src_width, img_src_height), interpolation=cv2.INTER_CUBIC)
+            lock.release()
+            print("fps grabscreen: {}".format(1 / (time.time() - last_time+0.000000001)))
+
+
+    t1 = threading.Thread(target=threadGrabScreen, args=())
+    t1.start()
 
     while True:
+        if img_src.size == 1:
+            continue
+
         last_time = time.time()
 
-        #定期跳一下摆脱障碍
-        if last_time - last_space > 15:
-            keyboard.press_and_release('space')
-            last_space = last_time
+        #1. 识别出要砍树
+        if cut and cut_mode_time == 0: #不在砍树模式则进入砍树模式
+            keyBoardReleaseAll()
+            cut_mode_time = last_time
 
-        if last_time - last_F > 10:
-            keyboard.press('w')
-        else:
-            keyboard.release('w')
-            keyboard.press_and_release('f')
+        #2. 在砍树模式持续时间内，持续砍树
+        if last_time - cut_mode_time < cut_mode_last: 
+            keyboard.press("right")
+            keyboard.press_and_release("f")
+        else: 
+            #结束砍树模式
+            if cut_mode_time != 0:
+                cut_mode_time = 0
+                keyBoardReleaseAll()
 
-        img_src_origin, _ = getScreenshot()
+            #目标识别
+            lock.acquire()
+            label = np.copy(img_src[370:390, 810:870])
+            bboxes_pridict = getDetection(img_src)
+            bbox_pridict = getLargestBox(bboxes_pridict)
+            lock.release()
 
-        img_src = cv2.resize(img_src_origin, dsize=(img_src_width, img_src_height), interpolation=cv2.INTER_CUBIC)
+            #定期跳一下摆脱障碍
+            if last_time - last_space > 5:
+                keyboard.press_and_release('space')
+                last_space = last_time
 
-        #定位靠近时ui的位置
-        label = img_src[370:390, 890:950]
-        cv2.imshow("label", label)
-
-        #目标识别
-        bboxes_pridict = getDetection(img_src)
-        bbox_pridict = getLargestBox(bboxes_pridict)
-
-        #瞄准目标
-        if time.time() - last_sight > 0.05:
+            #3. 存在目标，且目标的框框大于阈值，缓速前进
             if bbox_pridict.shape[0] != 0:
                 x0,y0,x1,y1 = int(bbox_pridict[0]), int(bbox_pridict[1]), int(bbox_pridict[2]), int(bbox_pridict[3])
+
+                #首先瞄准目标            
                 cx = (x0 + x1) / 2
                 if cx - 50 > img_src_width / 2:
                     sight_key = 'right'
@@ -137,17 +171,34 @@ if __name__ == '__main__':
                     keyboard.release("right")
                     keyboard.release("left")
                     keyboard.press(sight_key)
-                    last_sight = time.time()
-                                   
-        #文本识别
+
+                print(x1 - x0, y1 - y0)
+                if x1 - x0 > 125 or y1 - y0 > 300:
+                    keyboard.release("shift")
+                    keyboard.press("w")
+                    time.sleep(0.03)
+                    keyboard.release("w")
+                #4. 存在目标，但目标的框框小于阈值
+                else:
+                    keyboard.press("shift")
+                    keyboard.press("w")
+            else:
+                #5. 不存在目标
+                if sight_key != None:
+                    keyboard.press(sight_key)
+                keyboard.press("shift")
+                keyboard.press("w")
+
+        #判断是否要砍树
         cut = getLabelExist(label)
-        if cut:
-            last_F = time.time()
-            keyboard.press_and_release('f')
-    
+            
         img_src = drawBBox(img_src.copy(), bbox_pridict)      
         cv2.imshow("UndawnPridictor", img_src)
+
+        if label.size != 1:
+            cv2.imshow("label", label)
+
         if cv2.waitKey(1) & 0xFF == ord("q"):
             cv2.destroyAllWindows()
             break
-        print("fps: {}".format(1 / (time.time() - last_time+0.000000001)))
+        print("fps yolo: {}".format(1 / (time.time() - last_time+0.000000001)))
