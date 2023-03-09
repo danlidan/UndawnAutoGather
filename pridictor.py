@@ -8,6 +8,7 @@ from win32gui import FindWindow, GetWindowRect
 import cv2
 import keyboard
 from paddleocr import PaddleOCR
+import pyautogui
 
 #ocr文本识别
 ocr = PaddleOCR(use_angle_cls=False, lang="ch", show_log=False)
@@ -86,6 +87,15 @@ def keyBoardReleaseAll():
     keyboard.release("shift")
     keyboard.release('w')
 
+def pressReviveButton(x0, y0, x1, y1):
+    width = x1-x0
+    height = y1-y0
+    clickposx = x0 + width * 2 /3 
+    clickposy = y0 + height * 15 / 16
+    pyautogui.click(clickposx, clickposy, button='left')
+    keyBoardReleaseAll()
+
+
 if __name__ == '__main__':
     ctypes.windll.user32.SetProcessDPIAware()
     cv2.namedWindow("UndawnPridictor",cv2.WINDOW_NORMAL)
@@ -111,13 +121,21 @@ if __name__ == '__main__':
     def threadGrabScreen():
         global img_src
         global lock
+
+        last_time_revive = 0
         while True:
             last_time = time.time()
 
-            img_src_origin, _ = getScreenshot()
+            img_src_origin, v = getScreenshot()
             lock.acquire()
             img_src = cv2.resize(img_src_origin, dsize=(img_src_width, img_src_height), interpolation=cv2.INTER_CUBIC)
             lock.release()
+
+            #定期点一下复活按钮
+            if last_time - last_time_revive > 45:
+                pressReviveButton(v[0], v[1], v[2], v[3])
+                last_time_revive = last_time
+
             print("fps grabscreen: {}".format(1 / (time.time() - last_time+0.000000001)))
 
 
@@ -152,9 +170,10 @@ if __name__ == '__main__':
             bbox_pridict = getLargestBox(bboxes_pridict)
             lock.release()
 
-            #定期跳一下摆脱障碍
+            #定期跳一下和release一下w摆脱障碍
             if last_time - last_space > 5:
                 keyboard.press_and_release('space')
+                keyboard.press_and_release("w")
                 last_space = last_time
 
             #3. 存在目标，且目标的框框大于阈值，缓速前进
