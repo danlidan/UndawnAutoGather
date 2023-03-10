@@ -11,7 +11,7 @@ from paddleocr import PaddleOCR
 import pyautogui
 
 #ocr文本识别
-ocr = PaddleOCR(use_angle_cls=False, lang="ch", show_log=False)
+ocr = PaddleOCR(use_angle_cls=False, lang="ch", show_log=False, use_gpu=True)
 def getOcrText(img):
     result = ocr.ocr(img,cls=False)
     return result
@@ -76,7 +76,6 @@ def getLabelExist(img):
     result = getOcrText(img)
     for re in result:
         for res in re:
-            print(res)
             if res[1][0].find("矿") != -1 or res[1][0].find("树") != -1:
                 return True
     return False 
@@ -93,8 +92,32 @@ def pressReviveButton(x0, y0, x1, y1):
     clickposx = x0 + width * 2 /3 
     clickposy = y0 + height * 15 / 16
     pyautogui.click(clickposx, clickposy, button='left')
+
+def build_axe():
+    print("begin build axe...")
     keyBoardReleaseAll()
 
+    _, v = getScreenshot()
+    x0,y0,x1,y1 = v[0], v[1], v[2], v[3]
+    width = x1-x0
+    height = y1-y0
+
+    keyboard.press_and_release("f2")
+    time.sleep(0.5)
+    clickposx = x0 + width * 7 / 8 
+    clickposy = y0 + height / 2 
+    pyautogui.click(clickposx, clickposy, button='left')
+    time.sleep(0.5)
+    clickposx = x0 + width * 7 / 8 
+    clickposy = y0 + height * 15 / 16
+    pyautogui.click(clickposx, clickposy, button='left')
+    time.sleep(9)
+    clickposx = x0 + width * 31 / 32 
+    clickposy = y0 + height / 16
+    pyautogui.click(clickposx, clickposy, button='left')
+
+
+    print("build axe end")
 
 if __name__ == '__main__':
     ctypes.windll.user32.SetProcessDPIAware()
@@ -111,6 +134,8 @@ if __name__ == '__main__':
     cut = False #当前帧是否识别出要砍树
     cut_mode_time = 0 #进入砍树模式的时间
     cut_mode_last = 10
+    cut_times = 0 #造新斧头之后砍了多少次
+    CUT_TIMR_MAX = 40 #砍40次造一把新斧头
 
 
     #-----全局变量区-----
@@ -135,9 +160,8 @@ if __name__ == '__main__':
             if last_time - last_time_revive > 45:
                 pressReviveButton(v[0], v[1], v[2], v[3])
                 last_time_revive = last_time
-
-            print("fps grabscreen: {}".format(1 / (time.time() - last_time+0.000000001)))
-
+            if last_time - last_time_revive > 0 and last_time - last_time_revive < 1:
+                keyBoardReleaseAll()
 
     t1 = threading.Thread(target=threadGrabScreen, args=())
     t1.start()
@@ -162,6 +186,11 @@ if __name__ == '__main__':
             if cut_mode_time != 0:
                 cut_mode_time = 0
                 keyBoardReleaseAll()
+                cut_times += 1
+                print("cut times", cut_times)
+                if cut_times == CUT_TIMR_MAX:
+                    cut_times = 0
+                    build_axe()
 
             #目标识别
             lock.acquire()
@@ -191,7 +220,6 @@ if __name__ == '__main__':
                     keyboard.release("left")
                     keyboard.press(sight_key)
 
-                print(x1 - x0, y1 - y0)
                 if x1 - x0 > 125 or y1 - y0 > 300:
                     keyboard.release("shift")
                     keyboard.press("w")
@@ -220,4 +248,4 @@ if __name__ == '__main__':
         if cv2.waitKey(1) & 0xFF == ord("q"):
             cv2.destroyAllWindows()
             break
-        print("fps yolo: {}".format(1 / (time.time() - last_time+0.000000001)))
+        #print("fps yolo: {}".format(1 / (time.time() - last_time+0.000000001)))

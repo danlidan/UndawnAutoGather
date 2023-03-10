@@ -1,4 +1,5 @@
 import torch
+import paddle
 
 def try_all_gpus():  #@save
     """返回所有可用的GPU，如果没有GPU，则返回[cpu(),]"""
@@ -7,3 +8,4 @@ def try_all_gpus():  #@save
     return devices if devices else [torch.device('cpu')]
 
 print(try_all_gpus())
+paddle.utils.run_check()
